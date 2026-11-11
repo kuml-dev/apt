@@ -1,0 +1,8 @@
+Origin: kUML
+Label: kUML
+Codename: stable
+Suite: stable
+Architectures: amd64
+Components: main
+Description: kUML APT repository
+SignWith: yes

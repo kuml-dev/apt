@@ -1,0 +1,29 @@
+= kUML APT repository
+
+Debian and Ubuntu packages for https://kuml.dev[kUML], served at https://apt.kuml.dev via GitHub Pages.
+
+== Install
+
+[source,bash]
+----
+curl -fsSL https://apt.kuml.dev/kuml.gpg | sudo tee /usr/share/keyrings/kuml.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" \
+  | sudo tee /etc/apt/sources.list.d/kuml.list
+sudo apt update && sudo apt install kuml
+----
+
+Currently only `amd64` packages are published.
+
+== How it works
+
+* The `.deb` files are built by the kUML release workflow and attached to the GitHub Release of each tag.
+* This repository contains no packages. The workflow `publish.yml` downloads the `.deb` files of the most recent releases, builds a signed repository with `reprepro` and deploys it to GitHub Pages.
+* The workflow runs on every kUML release (`repository_dispatch` event `kuml-release`) or manually via `workflow_dispatch`.
+
+== Maintainer setup
+
+. Create a dedicated signing key (no expiry or a long one) and export the private key armored.
+. Add the repository secrets `APT_GPG_PRIVATE_KEY` (armored private key) and, if the key has one, `APT_GPG_PASSPHRASE`.
+. Enable GitHub Pages with source "GitHub Actions" and set the custom domain `apt.kuml.dev` (DNS: CNAME `apt` to `kuml-dev.github.io`).
+. Run the workflow once manually and check `apt update` on a clean Debian or Ubuntu machine.
+. For automatic updates the kUML release workflow needs a token that may dispatch events to this repository.

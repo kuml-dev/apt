@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kUML APT repository</title>
+<style>
+:root { --bg: #ffffff; --fg: #1a1a1a; --code: #f2f2f2; }
+@media (prefers-color-scheme: dark) { :root { --bg: #14161a; --fg: #e8e8e8; --code: #23262c; } }
+body { background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 16px; }
+pre { background: var(--code); padding: 12px; overflow-x: auto; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>kUML APT repository</h1>
+<p>Debian and Ubuntu packages for <a href="https://kuml.dev">kUML</a>.</p>
+<pre>curl -fsSL https://apt.kuml.dev/kuml.gpg | sudo tee /usr/share/keyrings/kuml.gpg &gt; /dev/null
+echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" \
+  | sudo tee /etc/apt/sources.list.d/kuml.list
+sudo apt update &amp;&amp; sudo apt install kuml</pre>
+<p>Public key: <a href="kuml.asc">kuml.asc</a> (armored), <a href="kuml.gpg">kuml.gpg</a> (binary).</p>
+</body>
+</html>

@@ -1,0 +1,92 @@
+name: Publish APT repository
+
+# Rebuilds the whole repository from the .deb files attached to the kUML
+# GitHub Releases and deploys it to GitHub Pages (https://apt.kuml.dev).
+# Triggered by the kUML release workflow (repository_dispatch) or by hand.
+on:
+  repository_dispatch:
+    types: [kuml-release]
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: "Number of most recent kUML releases to include"
+        default: "5"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASES: ${{ github.event.inputs.releases || '5' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y reprepro gnupg
+
+      - name: Import signing key
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
+            echo "::error::secret APT_GPG_PRIVATE_KEY is not set"
+            exit 1
+          fi
+          mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback" > ~/.gnupg/gpg.conf
+          if [ -n "$APT_GPG_PASSPHRASE" ]; then
+            echo "passphrase-file $HOME/.gnupg/passphrase" >> ~/.gnupg/gpg.conf
+            printf '%s' "$APT_GPG_PASSPHRASE" > ~/.gnupg/passphrase
+            chmod 600 ~/.gnupg/passphrase
+          fi
+          gpgconf --kill gpg-agent || true
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --list-secret-keys --keyid-format long
+
+      - name: Download packages from kUML releases
+        run: |
+          mkdir -p debs
+          for tag in $(gh release list --repo kuml-dev/kUML --limit "$RELEASES" --exclude-drafts --exclude-pre-releases --json tagName -q '.[].tagName'); do
+            gh release download "$tag" --repo kuml-dev/kUML --pattern '*.deb' --dir debs || echo "::warning::no .deb in $tag"
+          done
+          ls -l debs
+          test -n "$(ls debs/*.deb 2>/dev/null)" || { echo "::error::no .deb files found"; exit 1; }
+
+      - name: Build repository
+        run: |
+          for deb in debs/*.deb; do reprepro --basedir . includedeb stable "$deb"; done
+          mkdir -p public
+          cp -r dists pool public/
+          cp site/index.html public/
+          gpg --armor --export > public/kuml.asc
+          gpg --export > public/kuml.gpg
+          echo "apt.kuml.dev" > public/CNAME
+          touch public/.nojekyll
+
+      - name: Verify signature
+        run: gpg --verify public/dists/stable/Release.gpg public/dists/stable/Release
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
