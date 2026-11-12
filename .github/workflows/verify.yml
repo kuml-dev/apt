@@ -1,0 +1,53 @@
+name: Verify installation
+
+# Installs kuml and kuml-desktop from https://apt.kuml.dev in clean Debian and
+# Ubuntu containers, the way a user would: fetch the key, add the source,
+# apt update, apt install. Manual, and after every publish run.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish APT repository"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "ubuntu:22.04", "debian:12"]
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Add the repository
+        shell: sh
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          curl -fsSL https://apt.kuml.dev/kuml.gpg -o /usr/share/keyrings/kuml.gpg
+          echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" > /etc/apt/sources.list.d/kuml.list
+          apt-get update
+          apt-cache policy kuml kuml-desktop
+
+      - name: Install the command-line tool
+        shell: sh
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get install -y kuml
+          ls -l /opt/kuml/bin/kuml
+          if command -v kuml >/dev/null 2>&1; then kuml --version; else /opt/kuml/bin/kuml --version; fi
+
+      - name: Install the desktop app
+        if: ${{ always() }}
+        shell: sh
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get install -y kuml-desktop
+          ls -l /opt/kuml-desktop/bin/kuml-desktop
+          find / -name '*kuml*.desktop' -not -path '/proc/*' 2>/dev/null | head -3
