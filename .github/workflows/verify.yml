@@ -48,6 +48,9 @@ jobs:
         shell: sh
         run: |
           export DEBIAN_FRONTEND=noninteractive
+          # A minimal container has none of the menu directories a desktop system
+          # has; the package's post-install script (xdg-desktop-menu) needs them.
+          mkdir -p /usr/share/applications /usr/share/desktop-directories /etc/xdg/menus/applications-merged
           apt-get install -y kuml-desktop
           ls -l /opt/kuml-desktop/bin/kuml-desktop
           find / -name '*kuml*.desktop' -not -path '/proc/*' 2>/dev/null | head -3
